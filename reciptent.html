@@ -4,23 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LifeLink | Centralized Organ Coordination</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Poppins -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- React and Babel for JSX -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: 'Poppins', sans-serif; }
+        body { font-family: 'Poppins', sans-serif; background-color: #fdfdfd; }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
         .animate-in { animation: fadeIn 0.5s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hero-bg {
+            background: linear-gradient(rgba(0,111,183,0.5), rgba(0,162,158,0.5)), 
+                        url('https://images.unsplash.com/photo-1584362923647-481cf614a242?q=80&w=2000');
+            background-size: cover;
+            background-position: center;
+        }
     </style>
 </head>
 <body class="bg-white text-slate-900">
@@ -28,7 +30,8 @@
 
     <script type="text/babel">
         const { useState, useMemo, useEffect } = React;
-        // Mock icons component for React environment without lucide-react package
+
+        // Icon Component to bridge React and Lucide CDN
         const Icon = ({ name, size = 20, className = "" }) => {
             useEffect(() => {
                 if (window.lucide) window.lucide.createIcons();
@@ -39,79 +42,17 @@
         const App = () => {
             const [currentView, setCurrentView] = useState('home');
             const [showChat, setShowChat] = useState(false);
-            const [isLogisticsModalOpen, setIsLogisticsModalOpen] = useState(false);
-            const [activeToast, setActiveToast] = useState(null);
-            const [chatMessages, setChatMessages] = useState([
-                { role: 'ai', text: 'Hello! I am your LifeLink Assistant. I can guide you through donor pledging, recipient registration, or explain how our automated matching works. How can I help you today?' }
-            ]);
             const [chatInput, setChatInput] = useState('');
-
-            // Feature 5: Notification System
-            const [notifications, setNotifications] = useState([
-                { id: 1, text: "Urgent: Kidney match found for Sarah Johnson (94%)", time: "2m ago", type: 'urgent', read: false },
-                { id: 2, text: "Donor D-8821 verified by National Registry", time: "1h ago", type: 'update', read: true },
-                { id: 3, text: "Logistics: Air ambulance scheduled for Zone A", time: "3h ago", type: 'logistics', read: true }
+            const [activeToast, setActiveToast] = useState(null);
+            
+            const [chatMessages, setChatMessages] = useState([
+                { role: 'ai', text: 'Hello! I am your LifeLink Assistant. I can help with MELD scores, genetic matching, or explain our clinical urgency scoring. How can I assist you?' }
             ]);
-
-            const [donor, setDonor] = useState({
-                id: 'D-8821',
-                name: 'Anonymous Donor',
-                bloodType: 'O',
-                hlaMarkers: ['A1', 'A3', 'B7'],
-                height: 175,
-                weight: 75,
-                ethical: { isVoluntary: true, consentVerified: true }
-            });
 
             const [recipient, setRecipient] = useState({
-                id: 'R-NEW',
-                name: '',
-                age: '',
-                height: '',
-                weight: '',
-                bloodType: 'O',
-                organNeeded: 'Kidney',
-                meldScore: 6,
-                distance: 10,
-                psychSocialStability: true,
-                activeInfection: false,
-                healthHistory: ''
+                name: '', age: '', bloodType: 'O', meldScore: 6, organNeeded: 'Kidney'
             });
 
-            const addNotification = (text, type) => {
-                const newNotif = { id: Date.now(), text, time: "Just now", type, read: false };
-                setNotifications(prev => [newNotif, ...prev]);
-                setActiveToast(newNotif);
-                setTimeout(() => setActiveToast(null), 5000);
-            };
-
-            // Feature 2: Scoring Engine Logic
-            const evaluation = useMemo(() => {
-                const ABO_MAP = { 'O': ['O', 'A', 'B', 'AB'], 'A': ['A', 'AB'], 'B': ['B', 'AB'], 'AB': ['AB'] };
-                if (!recipient.name) return { total: 0, isViable: false, failedGates: [{ label: 'Data Missing', msg: 'Please complete registration' }], details: [] };
-
-                let score = 0;
-                const details = [];
-                const checks = [
-                    { label: 'ABO Compatibility', pass: ABO_MAP[donor.bloodType]?.includes(recipient.bloodType), msg: 'Blood type mismatch' },
-                    { label: 'Clinical Readiness', pass: !recipient.activeInfection && recipient.psychSocialStability, msg: 'Recipient not cleared' }
-                ];
-
-                const failedGates = checks.filter(c => !c.pass);
-                if (failedGates.length > 0) return { total: 0, isViable: false, failedGates, details: [] };
-
-                const urgencyPoints = Math.round(((recipient.meldScore - 6) / 34) * 40);
-                score += urgencyPoints;
-                details.push({ label: 'Urgency (MELD)', status: `Score ${recipient.meldScore}`, score: urgencyPoints, max: 40 });
-
-                const logiPoints = recipient.distance < 100 ? 20 : 10;
-                score += logiPoints;
-                details.push({ label: 'Logistics', status: `${recipient.distance}mi`, score: logiPoints, max: 20 });
-
-                return { total: score + 30, isViable: true, failedGates: [], details };
-            }, [donor, recipient]);
-
-            // Feature 4: Chatbot Assistant
             const handleChatSend = () => {
                 if (!chatInput.trim()) return;
                 const userMsg = { role: 'user', text: chatInput };
@@ -120,269 +61,127 @@
                 setChatInput('');
                 
                 setTimeout(() => {
-                    let reply = "I can assist with that. Are you asking about the recipient application process, medical urgency (MELD), or donor pledges?";
-                    if (input.includes('apply')) reply = "To avail organs, go to the 'Recipient Info' tab and submit your full medical history and clinical data.";
-                    if (input.includes('meld')) reply = "MELD scores (6-40) measure clinical urgency. Higher scores get priority.";
+                    let reply = "I'm analyzing your request. Would you like to know more about our HLA matching or the transplant timeline?";
+                    if (input.includes('meld')) reply = "MELD (Model for End-Stage Liver Disease) scores indicate medical urgency. Higher scores (up to 40) receive priority.";
+                    if (input.includes('match')) reply = "Our BioMatch Engine calculates ABO compatibility and HLA genetic markers to ensure 80%+ graft survival probability.";
                     setChatMessages(prev => [...prev, { role: 'ai', text: reply }]);
                 }, 600);
             };
 
-            const LogisticsModal = () => (
-                <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6">
-                    <div className="bg-white w-full max-w-lg rounded-[40px] shadow-2xl overflow-hidden animate-in">
-                        <div className="bg-[#2CA4CE] p-8 text-white">
-                            <div className="flex justify-between items-center">
-                                <h3 className="text-2xl font-black flex items-center gap-3">
-                                    <Icon name="plane" /> Schedule Logistics
-                                </h3>
-                                <button onClick={() => setIsLogisticsModalOpen(false)} className="p-2 hover:bg-white/10 rounded-full">
-                                    <Icon name="x" />
-                                </button>
-                            </div>
-                            <p className="text-white/70 text-sm mt-2">Coordinate transport for {recipient.name}</p>
-                        </div>
-                        <div className="p-8 space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                                <button className="p-4 rounded-2xl border-2 border-[#00A29E] bg-[#00A29E]/5 flex flex-col items-center gap-2">
-                                    <Icon name="plane" className="text-[#00A29E]" />
-                                    <span className="text-xs font-black uppercase text-[#00A29E]">Air Unit</span>
-                                </button>
-                                <button className="p-4 rounded-2xl border-2 border-slate-100 flex flex-col items-center gap-2">
-                                    <Icon name="truck" className="text-slate-400" />
-                                    <span className="text-xs font-black uppercase text-slate-400">Ground Unit</span>
-                                </button>
-                            </div>
-                            <button 
-                                onClick={() => { addNotification(`Logistics Scheduled: Air transport confirmed.`, 'logistics'); setIsLogisticsModalOpen(false); }}
-                                className="w-full bg-[#006FB7] text-white py-4 rounded-2xl font-black text-lg hover:bg-[#005a96]"
-                            >
-                                CONFIRM SCHEDULE
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
-
             return (
-                <div className="min-h-screen bg-white font-['Poppins']">
-                    {activeToast && (
-                        <div className="fixed top-24 right-10 z-[150] w-96 bg-[#2CA4CE] text-white p-6 rounded-[32px] shadow-2xl flex gap-4 animate-in border border-white/20">
-                            <div className="bg-white/20 p-3 rounded-2xl"><Icon name="bell" className="animate-bounce" /></div>
-                            <div>
-                                <p className="text-xs font-black uppercase tracking-widest mb-1">Match Alert</p>
-                                <p className="text-sm font-bold">{activeToast.text}</p>
-                            </div>
-                        </div>
-                    )}
-
-                    {isLogisticsModalOpen && <LogisticsModal />}
-
-                    {/* Navigation Header */}
+                <div className="min-h-screen">
+                    {/* 1. TOP UTILITY NAV */}
                     <div className="bg-[#00A29E] py-2 px-10 flex justify-end items-center gap-6">
                         <div className="flex gap-6 text-white text-[10px] font-bold uppercase tracking-widest">
-                            <a href="#">Pledge Portal</a>
-                            <a href="#">Registry Sync</a>
+                            <a href="#">Donate</a>
+                            <a href="#">WTG 2025</a>
                         </div>
-                        <div className="flex gap-4 text-white opacity-90">
+                        <div className="flex gap-4 text-white opacity-80">
                             <Icon name="instagram" size={14} />
                             <Icon name="facebook" size={14} />
                         </div>
                     </div>
 
+                    {/* 2. MAIN HEADER */}
                     <header className="bg-[#2CA4CE] shadow-md sticky top-0 z-50">
-                        <div className="max-w-7xl mx-auto px-10 h-20 flex items-center justify-between">
-                            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentView('home')}>
-                                <img src="https://www.organindia.org/wp-content/uploads/2022/06/logo-white.png" className="h-14" alt="Logo" />
-                                <span className="text-white font-black text-xl tracking-tighter uppercase ml-2">LifeLink</span>
+                        <div className="max-w-7xl mx-auto px-10 h-24 flex items-center justify-between">
+                            <div className="flex items-center cursor-pointer" onClick={() => setCurrentView('home')}>
+                                <img src="https://www.organindia.org/wp-content/uploads/2022/06/logo-white.png" className="h-16" alt="Logo" />
                             </div>
-                            <nav className="hidden lg:flex items-center gap-8">
-                                <button onClick={() => setCurrentView('home')} className={`text-[12px] font-bold uppercase ${currentView === 'home' ? 'text-white underline underline-offset-8' : 'text-white opacity-70'}`}>Awareness</button>
-                                <button onClick={() => setCurrentView('pledge')} className={`text-[12px] font-bold uppercase ${currentView === 'pledge' ? 'text-white underline underline-offset-8' : 'text-white opacity-70'}`}>Pledge</button>
-                                <button onClick={() => setCurrentView('recipient-apply')} className={`text-[12px] font-bold uppercase ${currentView === 'recipient-apply' ? 'text-white underline underline-offset-8' : 'text-white opacity-70'}`}>Recipient Info</button>
-                                <button onClick={() => setCurrentView('hospital-portal')} className={`text-[12px] font-bold uppercase ${currentView === 'hospital-portal' ? 'text-white underline underline-offset-8' : 'text-white opacity-70'}`}>Hospital Dash</button>
+                            <nav className="hidden lg:flex items-center gap-10">
+                                <button onClick={() => setCurrentView('home')} className={`text-[12px] font-bold uppercase ${currentView === 'home' ? 'text-white border-b-2' : 'text-white opacity-70'}`}>Awareness</button>
+                                
+                                {/* Link to separate pledge page */}
+                                <a href="pledge.html" className="text-[12px] font-bold uppercase text-white opacity-70 hover:opacity-100">Pledge</a>
+                                
+                                <button onClick={() => setCurrentView('recipient-apply')} className={`text-[12px] font-bold uppercase ${currentView === 'recipient-apply' ? 'text-white border-b-2' : 'text-white opacity-70'}`}>Recipient Info</button>
+                                
+                                {/* Link to external Streamlit app */}
+                                <a href="https://edabffvkr9ephcwrf3xrgm.streamlit.app/" target="_blank" className="text-[12px] font-bold uppercase text-white opacity-70 hover:opacity-100">Hospital Portal</a>
                             </nav>
-                            <button className="bg-[#00A29E] text-white px-6 py-2 rounded-full text-xs font-bold uppercase hover:bg-[#00817d]">
-                                Provider Login
-                            </button>
+                            <button className="bg-white text-[#00A29E] px-6 py-2 rounded-full text-xs font-black uppercase shadow-lg">Login</button>
                         </div>
                     </header>
 
-                    {/* Main Content Area */}
+                    {/* 3. VIEW ROUTER */}
                     <main>
                         {currentView === 'home' && (
-                            <div className="animate-in bg-[#F5F1EE]">
-                                <section className="relative h-[550px] flex items-center bg-slate-900 overflow-hidden px-10">
-                                    <div className="absolute inset-0 bg-black/40 z-10"></div>
-                                    <img src="https://www.organindia.org/wp-content/uploads/2024/07/banner.jpg" className="absolute inset-0 w-full h-full object-cover" alt="Hero" />
-                                    <div className="relative z-20 max-w-4xl">
-                                        <h1 className="text-white text-6xl font-extrabold leading-tight mb-8">One Donor Can Help Transform Up to 8 Lives</h1>
-                                        <div className="flex gap-4">
-                                            <button onClick={() => setCurrentView('pledge')} className="bg-[#00A29E] text-white px-10 py-4 rounded-full font-bold text-lg hover:bg-[#00817d] transition shadow-xl">Pledge Now</button>
-                                            <button onClick={() => setCurrentView('recipient-apply')} className="bg-white text-[#006FB7] px-10 py-4 rounded-full font-bold text-lg transition shadow-xl">I Need an Organ</button>
+                            <div className="animate-in">
+                                <section className="hero-bg h-[600px] flex items-center px-10">
+                                    <div className="max-w-4xl text-white">
+                                        <h1 className="text-7xl font-black leading-tight mb-8 uppercase">One Donor Can Help <br/> Save 8 Lives</h1>
+                                        <div className="flex gap-6">
+                                            <a href="pledge.html" class="bg-white text-[#00A29E] px-12 py-5 rounded-2xl font-black text-lg shadow-2xl transition hover:scale-105">Pledge Now</a>
+                                            <button onClick={() => setCurrentView('recipient-apply')} className="bg-[#006FB7] text-white px-12 py-5 rounded-2xl font-black text-lg shadow-2xl transition hover:scale-105">I Need An Organ</button>
                                         </div>
                                     </div>
                                 </section>
-                                <section className="max-w-7xl mx-auto px-10 py-20 grid md:grid-cols-2 gap-16 items-center">
-                                    <img src="https://www.organindia.org/wp-content/uploads/2022/07/organ-support.jpg" className="rounded-2xl shadow-lg" alt="Support" />
+                                <section className="max-w-7xl mx-auto px-10 py-24 grid md:grid-cols-2 gap-20 items-center">
+                                    <img src="https://www.organindia.org/wp-content/uploads/2022/07/organ-support.jpg" className="rounded-[40px] shadow-2xl" />
                                     <div>
-                                        <h2 className="text-[#006FB7] font-extrabold text-4xl mb-6">Centralized Matching</h2>
-                                        <p className="text-gray-600 text-lg mb-8 leading-relaxed">LifeLink strives to provide a support system for those in need, helping people live the miracle of a life renewed through transparent and fast coordination.</p>
-                                        <button className="border-2 border-[#00A29E] text-[#00A29E] px-8 py-2 rounded-full font-bold">Learn More</button>
+                                        <h2 className="text-[#006FB7] text-4xl font-black mb-6 uppercase">A Global Support System</h2>
+                                        <p class="text-gray-500 text-lg leading-relaxed italic">Helping people live the miracle of a life renewed through transparent and AI-optimized clinical coordination.</p>
                                     </div>
                                 </section>
                             </div>
                         )}
 
                         {currentView === 'recipient-apply' && (
-                            <div className="animate-in bg-white min-h-screen">
-                                <section className="bg-[#2CA4CE] py-16 px-10 text-white">
-                                    <div className="max-w-5xl mx-auto">
-                                        <h2 className="text-5xl font-black tracking-tighter">Avail Organ Matching</h2>
-                                        <p className="text-white/80 mt-2 text-lg">Submit your clinical data for registry synchronization.</p>
+                            <div className="max-w-4xl mx-auto py-20 px-10 animate-in">
+                                <h2 className="text-4xl font-black text-[#006FB7] mb-10 uppercase tracking-tighter">Recipient Application</h2>
+                                <div className="space-y-8 bg-white p-10 rounded-[40px] shadow-sm border">
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div><label className="text-[10px] font-black uppercase text-gray-400">Patient Name</label>
+                                        <input type="text" className="w-full border-b-2 border-slate-100 p-2 outline-none focus:border-[#00A29E]" placeholder="Enter Name" onChange={(e) => setRecipient({...recipient, name: e.target.value})} /></div>
+                                        <div><label className="text-[10px] font-black uppercase text-gray-400">MELD Score</label>
+                                        <input type="number" className="w-full border-b-2 border-slate-100 p-2 outline-none focus:border-[#00A29E]" placeholder="6-40" onChange={(e) => setRecipient({...recipient, meldScore: parseInt(e.target.value)})} /></div>
                                     </div>
-                                </section>
-                                <main className="max-w-5xl mx-auto py-16 px-6">
-                                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                                        <div className="lg:col-span-8 space-y-12">
-                                            <section className="space-y-6">
-                                                <h3 className="text-xl font-black text-[#006FB7] border-b pb-2 flex items-center gap-2"><Icon name="user-plus" /> Patient Data</h3>
-                                                <div className="grid grid-cols-2 gap-6">
-                                                    <input type="text" className="w-full bg-slate-50 border p-3 rounded-xl font-bold" placeholder="Patient Full Name" onChange={(e) => setRecipient({...recipient, name: e.target.value})} />
-                                                    <input type="number" className="w-full bg-slate-50 border p-3 rounded-xl font-bold" placeholder="Age" onChange={(e) => setRecipient({...recipient, age: e.target.value})} />
-                                                </div>
-                                                <div className="grid grid-cols-3 gap-4">
-                                                    <select className="bg-slate-50 border p-3 rounded-xl font-bold" onChange={(e) => setRecipient({...recipient, bloodType: e.target.value})}>
-                                                        <option value="O">Type O</option>
-                                                        <option value="A">Type A</option>
-                                                        <option value="B">Type B</option>
-                                                        <option value="AB">Type AB</option>
-                                                    </select>
-                                                    <input type="number" className="bg-slate-50 border p-3 rounded-xl font-bold" placeholder="MELD Score (6-40)" onChange={(e) => setRecipient({...recipient, meldScore: parseInt(e.target.value)})} />
-                                                    <select className="bg-slate-50 border p-3 rounded-xl font-bold" onChange={(e) => setRecipient({...recipient, organNeeded: e.target.value})}>
-                                                        <option value="Kidney">Kidney</option>
-                                                        <option value="Liver">Liver</option>
-                                                        <option value="Heart">Heart</option>
-                                                    </select>
-                                                </div>
-                                            </section>
-                                            <section className="space-y-6">
-                                                <h3 className="text-xl font-black text-[#006FB7] border-b pb-2 flex items-center gap-2"><Icon name="history" /> Health History</h3>
-                                                <textarea className="w-full bg-slate-50 border p-4 rounded-2xl min-h-[120px]" placeholder="Describe previous health status, surgeries, and chronic conditions..."></textarea>
-                                            </section>
-                                            <button 
-                                                onClick={() => { 
-                                                    addNotification(`Application Submitted: ${recipient.name} added.`, 'update'); 
-                                                    setCurrentView('hospital-portal'); 
-                                                    setTimeout(() => addNotification(`ALERT: High compatibility match found for ${recipient.name}.`, 'urgent'), 2000);
-                                                }}
-                                                className="w-full bg-[#006FB7] text-white py-5 rounded-2xl font-black text-xl shadow-xl hover:bg-[#005a96] flex items-center justify-center gap-3"
-                                            >
-                                                <Icon name="heart-pulse" /> SUBMIT APPLICATION
-                                            </button>
-                                        </div>
-                                        <div className="lg:col-span-4">
-                                            <div className="bg-amber-50 p-8 rounded-[40px] border border-amber-100">
-                                                <h4 className="font-black uppercase text-sm text-amber-600 mb-2">Compliance Notice</h4>
-                                                <p className="text-[10px] text-amber-800 leading-relaxed font-bold italic">Providing false information is a punishable offense under the THOA Act, 1994.</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </main>
-                            </div>
-                        )}
-
-                        {currentView === 'hospital-portal' && (
-                            <div className="max-w-7xl mx-auto py-8 px-6 grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in">
-                                <div className="lg:col-span-4 space-y-6">
-                                    <section className="bg-slate-900 p-8 rounded-[32px] text-white shadow-2xl">
-                                        <h4 className="font-bold flex items-center gap-2 text-teal-400 uppercase text-xs mb-6"><Icon name="bell" /> Live Alert Center</h4>
-                                        <div className="space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
-                                            {notifications.map(n => (
-                                                <div key={n.id} className={`p-4 rounded-2xl border ${n.type === 'urgent' ? 'border-rose-500/50 bg-rose-500/10' : 'border-white/10 bg-white/5'}`}>
-                                                    <p className="text-xs font-bold">{n.text}</p>
-                                                    <p className="opacity-40 text-[10px] mt-1">{n.time}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </section>
-                                </div>
-                                <div className="lg:col-span-8">
-                                    <div className="bg-white p-12 rounded-[48px] shadow-2xl border flex flex-col items-center justify-center text-center min-h-[600px]">
-                                        {!recipient.name ? (
-                                            <div className="space-y-4 text-slate-400">
-                                                <Icon name="search" size={60} className="mx-auto" />
-                                                <h3 className="text-2xl font-black">No Active Patient</h3>
-                                                <p>Submit a recipient application to see automated match scoring.</p>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <div className="relative mb-10">
-                                                    <svg className="w-64 h-64 transform -rotate-90">
-                                                        <circle cx="128" cy="128" r="114" strokeWidth="16" fill="transparent" className="text-slate-100" stroke="currentColor" />
-                                                        <circle cx="128" cy="128" r="114" strokeWidth="16" fill="transparent" stroke="currentColor" strokeDasharray={716} strokeDashoffset={716 - (716 * evaluation.total) / 100} strokeLinecap="round" className="text-[#00A29E]" />
-                                                    </svg>
-                                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                        <span className="text-7xl font-black text-slate-800">{evaluation.total}%</span>
-                                                        <span className="text-sm font-bold text-slate-400 uppercase">Match Score</span>
-                                                    </div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4 w-full mb-10">
-                                                    <div className="p-5 bg-slate-50 rounded-3xl border text-left">
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Priority</p>
-                                                        <p className="text-lg font-black">{recipient.meldScore} MELD</p>
-                                                    </div>
-                                                    <div className="p-5 bg-slate-50 rounded-3xl border text-left">
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase">Ischemia</p>
-                                                        <p className="text-lg font-black text-rose-500">12h Left</p>
-                                                    </div>
-                                                </div>
-                                                <button onClick={() => setIsLogisticsModalOpen(true)} className="w-full bg-[#006FB7] text-white py-5 rounded-3xl font-black text-xl flex items-center justify-center gap-3">
-                                                    <Icon name="truck" /> INITIATE TRANSPLANT LOGISTICS
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
+                                    <button onClick={() => { setActiveToast({text: "Application Logged Locally"}); setTimeout(() => setActiveToast(null), 3000); }} className="w-full bg-[#00A29E] text-white py-5 rounded-2xl font-black text-xl shadow-xl">SUBMIT TO REGISTRY</button>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    {/* Chatbot Interface */}
+                    {/* 4. CHATBOT INTEGRATION */}
                     <div className="fixed bottom-10 right-10 z-[100]">
                         {showChat && (
-                            <div className="absolute bottom-24 right-0 w-96 bg-white rounded-[32px] shadow-2xl border overflow-hidden flex flex-col animate-in">
+                            <div className="absolute bottom-24 right-0 w-96 bg-white rounded-[32px] shadow-2xl border flex flex-col animate-in">
                                 <div className="bg-[#2CA4CE] p-6 text-white flex justify-between items-center">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center"><Icon name="message-square" /></div>
-                                        <div><p className="text-sm font-black uppercase">LifeLink AI</p><p className="text-[10px] opacity-80 uppercase tracking-widest">Medical Support</p></div>
+                                    <div className="flex items-center gap-3">
+                                        <Icon name="message-square" />
+                                        <span className="font-bold text-xs uppercase">LifeLink AI Assistant</span>
                                     </div>
-                                    <Icon name="x" className="cursor-pointer" onClick={() => setShowChat(false)} />
+                                    <button onClick={() => setShowChat(false)}><Icon name="x" /></button>
                                 </div>
-                                <div className="h-[400px] p-6 overflow-y-auto space-y-4 bg-slate-50 custom-scrollbar">
+                                <div className="h-80 p-6 overflow-y-auto bg-slate-50 space-y-4 custom-scrollbar">
                                     {chatMessages.map((msg, i) => (
                                         <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[85%] p-4 rounded-3xl text-xs font-medium border ${msg.role === 'user' ? 'bg-[#006FB7] text-white border-[#006FB7] rounded-tr-none' : 'bg-white text-slate-600 border-slate-100 rounded-tl-none'}`}>
+                                            <div className={`p-3 rounded-2xl text-xs max-w-[85%] ${msg.role === 'user' ? 'bg-[#006FB7] text-white' : 'bg-white text-slate-600 shadow-sm'}`}>
                                                 {msg.text}
                                             </div>
                                         </div>
                                     ))}
                                 </div>
-                                <div className="p-4 bg-white border-t flex gap-3">
-                                    <input type="text" placeholder="Ask about MELD or Matching..." className="flex-1 bg-slate-50 border-none rounded-2xl text-xs p-4 outline-none" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleChatSend()} />
-                                    <button onClick={handleChatSend} className="w-12 h-12 bg-[#00A29E] text-white rounded-2xl flex items-center justify-center shadow-lg"><Icon name="send" /></button>
+                                <div className="p-4 bg-white border-t flex gap-2">
+                                    <input type="text" className="flex-1 bg-slate-100 rounded-xl p-3 text-xs outline-none" placeholder="Ask about HLA or MELD..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleChatSend()} />
+                                    <button onClick={handleChatSend} className="bg-[#00A29E] text-white p-3 rounded-xl shadow-lg"><Icon name="send" /></button>
                                 </div>
                             </div>
                         )}
-                        <button onClick={() => setShowChat(!showChat)} className="w-20 h-20 bg-[#006FB7] text-white rounded-[28px] flex items-center justify-center shadow-2xl transform hover:scale-105 transition-all">
+                        <button onClick={() => setShowChat(!showChat)} className="w-20 h-20 bg-[#006FB7] text-white rounded-3xl flex items-center justify-center shadow-2xl transform transition hover:scale-105">
                             <Icon name="message-square" size={30} />
                         </button>
                     </div>
 
-                    <footer className="bg-slate-900 text-white py-12 px-10 text-center">
-                        <h2 className="text-2xl font-black uppercase tracking-tighter flex items-center justify-center gap-2 mb-4">
-                            <Icon name="heart" className="text-[#00A29E] fill-[#00A29E]" /> LifeLink
-                        </h2>
-                        <p className="text-slate-500 text-xs uppercase font-bold tracking-widest">© 2026 LifeLink National Foundation | Bridge the gap between hope and healing.</p>
+                    {/* 5. TOAST NOTIFICATION */}
+                    {activeToast && (
+                        <div className="fixed top-28 right-10 z-[200] bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl border-l-4 border-teal-400 animate-in">
+                            <p className="text-xs font-bold uppercase tracking-widest">{activeToast.text}</p>
+                        </div>
+                    )}
+
+                    <footer className="bg-slate-900 text-white py-12 text-center mt-20">
+                        <p className="text-xs font-bold uppercase tracking-[0.3em] opacity-40">Copyright © 2026 LifeLink India | National Organ Coordination</p>
                     </footer>
                 </div>
             );
